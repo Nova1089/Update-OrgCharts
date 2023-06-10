@@ -186,8 +186,6 @@ function Update-OrgCharts($userImport)
         $foundDifference = Log-Differences -importedUser $user -logFilePath $logFilePath
         if (-not($foundDifference)) { continue } # don't try to make any changes if there are no changes to make
 
-        $totalUsersChanged++
-
         if ("" -ne $user.$department)
         {
             Set-AzureADUser -ObjectID $userUPN -Department $user.$department
@@ -211,7 +209,8 @@ function Update-OrgCharts($userImport)
                 continue
             }
             Set-AzureADUserManager -ObjectID $userUPN -RefObjectID $manager.ObjectID
-        }        
+        }
+        $totalUsersChanged++
     }
     Write-Host ("`nFinished updating.`n" +
         "$totalUsersChanged total users changed.`n" +
