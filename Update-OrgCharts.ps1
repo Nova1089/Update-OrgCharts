@@ -309,7 +309,11 @@ function New-DifferencesRecord
 # main
 Initialize-HeaderNames
 Show-Introduction
-Use-Module "AzureAD"
+$azureADPreviewInstalled = Test-ModuleInstalled "AzureADPreview"
+if (-not($azureADPreviewInstalled))
+{
+    Use-Module "AzureAD"
+}
 TryConnect-AzureAD
 $userImport = TryGet-UserCSV
 Read-Host "Press Enter to make the changes"
