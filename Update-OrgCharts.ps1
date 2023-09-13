@@ -1,3 +1,5 @@
+# Version 1.3
+
 # functions
 function Initialize-HeaderNames # remember to tweak this function if your spreadsheet uses different header names
 {
@@ -179,8 +181,6 @@ function Update-OrgCharts($userImport)
         Write-Progress -Activity "Updating users with new info..." -Status "$totalRecordsProcessed records processed."
 
         $userUPN = $user.$upn.Trim()
-        $userManagerUPN = $user.$managerUPN.Trim()
-
         if ($userUPN -notlike "*@blueravensolar.com") { continue } # do nothing if user doesn't have a Blue Raven email
 
         $foundDifference = Log-Differences -importedUser $user -logFilePath $logFilePath
@@ -188,14 +188,15 @@ function Update-OrgCharts($userImport)
 
         if ("" -ne $user.$department)
         {
-            Set-AzureADUser -ObjectID $userUPN -Department $user.$department
+            Set-AzureADUser -ObjectID $userUPN -Department $user.$department.Trim()
         }
 
         if ("" -ne $user.$jobTitle)
         {
-            Set-AzureADUser -ObjectID $userUPN -JobTitle $user.$jobTitle
+            Set-AzureADUser -ObjectID $userUPN -JobTitle $user.$jobTitle.Trim()
         }
         
+        $userManagerUPN = $user.$managerUPN.Trim()
         if ("" -ne $userManagerUPN)
         {            
             if ($userManagerUPN -notlike "*@blueravensolar.com") { continue }
@@ -227,10 +228,9 @@ function Log-Differences($importedUser, $logFilePath)
 {
     if ($null -eq $importedUser.$upn) { return $false }
     
-    $importedUserUPN = $importedUser.$upn.Trim()
-    $importedUserManagerUPN = $importedUser.$managerUPN.Trim()
     $foundDifference = $false # initializing to false prevents strange errors later where this variable is null but evaluated as true
 
+    $importedUserUPN = $importedUser.$upn.Trim()
     try # use try-catch here because -ErrorAction SilentlyContinue is not working for the Get-AzureADUser cmdlet
     {
         $currentUser = Get-AzureADUser -ObjectID $importedUserUPN -ErrorAction SilentlyContinue
@@ -241,32 +241,34 @@ function Log-Differences($importedUser, $logFilePath)
         return $false
     }
 
-    if ($importedUser.$department -eq "")
+    $importedUserDepartment = $importedUser.$department.Trim()
+    if ($importedUserDepartment -eq "")
     {
         Write-Warning "Provided department is blank for user $($importedUserUPN). Department was not changed."
     }
-    elseif ($importedUser.$department -ne $currentUser.Department)
+    elseif (($null -eq $currentUser.Department) -or ($importedUserDepartment -ne $currentUser.Department.Trim()))
     {
         $foundDifference = $true
         $differences = New-DifferencesRecord
         $differences."Department Before" = $currentUser.Department
-        $differences."Department After" = $importedUser.$department 
+        $differences."Department After" = $importedUserDepartment
     }
     
-    if ($importedUser.$jobTitle -eq "")
+    $importedUserTitle = $importedUser.$jobTitle.Trim()
+    if ($importedUserTitle -eq "")
     {
         Write-Warning "Provided title is blank for user $($importedUserUPN). Title was not changed."
     }
-    elseif ($importedUser.$jobTitle -ne $currentUser.JobTitle)
+    elseif (($null -eq $currentUser.JobTitle) -or ($importedUserTitle -ne $currentUser.JobTitle.Trim()))
     {
         $foundDifference = $true
         if ($null -eq $differences) { $differences = New-DifferencesRecord }
         $differences."Title Before" = $currentUser.JobTitle
-        $differences."Title After" = $importedUser.$jobTitle
+        $differences."Title After" = $importedUserTitle
     }
 
     $currentManager = Get-AzureADUserManager -ObjectID $importedUserUPN -ErrorAction SilentlyContinue
-
+    $importedUserManagerUPN = $importedUser.$managerUPN.Trim()
     if ($importedUserManagerUPN -eq "")
     {
         Write-Warning "Provided manager is blank for user $($importedUserUPN). Manager was not changed."
